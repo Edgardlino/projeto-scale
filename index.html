@@ -7,23 +7,26 @@
     <style>
         :root { --bg: #121212; --card: #1e1e1e; --primary: #00d2ff; --text: #e0e0e0; --danger: #ff4b2b; }
         body { font-family: 'Segoe UI', sans-serif; background: var(--bg); color: var(--text); display: flex; flex-direction: column; align-items: center; justify-content: center; min-height: 100vh; margin: 0; }
+        
         .card { background: var(--card); width: 90%; max-width: 400px; padding: 30px; border-radius: 20px; text-align: center; box-shadow: 0 10px 30px rgba(0,0,0,0.5); border: 1px solid #333; }
         
-        /* Header e Bateria */
+        /* Header */
         .header { display: flex; justify-content: space-between; align-items: center; margin-bottom: 20px; color: #666; font-size: 0.9rem; }
         .status-dot { height: 10px; width: 10px; background: #444; border-radius: 50%; display: inline-block; }
         .connected { background: var(--primary); box-shadow: 0 0 10px var(--primary); }
+
+        /* Peso */
+        .weight-box { background: #000; border-radius: 10px; padding: 20px; margin: 20px 0; border: 1px solid #333; position: relative; }
+        .value { font-size: 4rem; font-weight: bold; color: var(--primary); font-family: monospace; }
+        .unit { position: absolute; bottom: 15px; right: 20px; color: #666; }
+
+        /* Bateria */
         .bat-box { display: flex; align-items: center; gap: 5px; justify-content: flex-end; }
         .bat-icon { width: 20px; height: 10px; border: 2px solid #666; position: relative; padding: 1px; }
         .bat-fill { height: 100%; background: #00b09b; width: 0%; transition: 0.3s; }
         .bat-icon::after { content: ''; position: absolute; right: -4px; top: 2px; width: 2px; height: 6px; background: #666; }
 
-        /* Display Peso */
-        .weight-box { background: #000; border-radius: 10px; padding: 20px; margin: 20px 0; border: 1px solid #333; position: relative; }
-        .value { font-size: 4rem; font-weight: bold; color: var(--primary); font-family: monospace; }
-        .unit { position: absolute; bottom: 15px; right: 20px; color: #666; }
-
-        /* Botões Principais */
+        /* Botões */
         button { width: 100%; padding: 15px; border-radius: 12px; border: none; font-size: 1rem; font-weight: bold; cursor: pointer; margin-top: 10px; color: white; transition: 0.2s; }
         .btn-connect { background: #333; color: var(--primary); border: 1px solid var(--primary); }
         .btn-tare { background: linear-gradient(135deg, #f39c12, #d35400); }
@@ -31,7 +34,7 @@
         .btn-cloud { background: #27ae60; margin-bottom: 5px; display: none; }
         .btn-hist { background: #8e44ad; display: none; } /* Botão Histórico */
 
-        /* Calibração */
+        /* Calibração (Escondido) */
         #cal-area { display: none; margin-top: 15px; background: #252525; padding: 15px; border-radius: 10px; }
         input { background: #333; border: 1px solid #555; color: white; padding: 10px; width: 60%; border-radius: 5px; text-align: center; }
         .btn-save { background: var(--primary); margin-top: 5px; }
@@ -99,7 +102,7 @@
     </div>
 
     <script>
-        // --- SEU LINK DO GOOGLE SCRIPT ---
+        // --- COLOQUE SEU LINK DO GOOGLE SCRIPT AQUI ---
         const GOOGLE_SCRIPT_URL = "https://script.google.com/macros/s/AKfycbywhp8dTqHn9oGgIk3P4fQ8QsVK6QINHUKJmvmWb5FGikMxAuXDY82XvyMCJRXjAnaq9A/exec"; 
 
         const SERVICE_UUID = "4fafc201-1fb5-459e-8fcc-c5c9c331914b";
@@ -127,7 +130,7 @@
 
                 document.getElementById('status-dot').classList.add('connected');
                 document.getElementById('btn-bt').style.display = 'none';
-                // Mostra botões de nuvem
+                
                 document.getElementById('btn-cloud').style.display = 'block';
                 document.getElementById('btn-hist').style.display = 'block';
                 document.getElementById('btn-tare').disabled = false;
@@ -173,29 +176,31 @@
             const m = document.getElementById('histModal');
             m.style.display = 'flex';
             const tbody = document.getElementById('hist-body');
-            tbody.innerHTML = ''; // Limpa tabela antiga
+            tbody.innerHTML = ''; 
             document.getElementById('loading').style.display = 'block';
             document.getElementById('hist-table').style.display = 'none';
 
-            // Chama o Script com action=read
             fetch(GOOGLE_SCRIPT_URL + "?action=read")
             .then(r => r.json())
             .then(data => {
                 document.getElementById('loading').style.display = 'none';
                 document.getElementById('hist-table').style.display = 'table';
                 
-                // Pega apenas os últimos 10 registros e inverte (mais recente primeiro)
-                // Se quiser ver tudo, remova o .slice(-10)
+                // Pega os últimos 15 e inverte
                 let ultimos = data.slice(1).slice(-15).reverse(); 
 
                 ultimos.forEach(row => {
-                    // row[0]=Data, row[1]=Hora, row[2]=Peso, row[3]=Bat
-                    // Formata a data para ficar curto (Dia/Mes)
-                    let d = new Date(row[0]);
-                    let dataCurta = d.getDate() + "/" + (d.getMonth()+1) + " " + row[1].substring(0,5);
+                    // CORREÇÃO: Tratamento de Texto Simples
+                    // O Google Script agora manda "08/12/2025" e "14:30" prontos.
+                    // row[0] = Data (String), row[1] = Hora (String)
+                    
+                    // Pega apenas "08/12" (os 5 primeiros caracteres da data)
+                    let diaMes = row[0].substring(0, 5); 
+                    let hora = row[1];
+                    let dataFormatada = diaMes + " " + hora;
                     
                     let tr = `<tr>
-                        <td>${dataCurta}</td>
+                        <td>${dataFormatada}</td>
                         <td style="font-weight:bold; color:white">${row[2]}</td>
                         <td style="color:#aaa">${row[3]}%</td>
                     </tr>`;
@@ -240,7 +245,6 @@
             el.style.display = el.style.display === 'block' ? 'none' : 'block';
         }
         
-        // Fecha modal clicando fora
         window.onclick = function(e) { if (e.target == document.getElementById('histModal')) closeModal(); }
     </script>
 </body>
