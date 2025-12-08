@@ -7,7 +7,6 @@
     <style>
         :root { --bg: #121212; --card: #1e1e1e; --primary: #00d2ff; --text: #e0e0e0; --danger: #ff4b2b; }
         body { font-family: 'Segoe UI', sans-serif; background: var(--bg); color: var(--text); display: flex; flex-direction: column; align-items: center; justify-content: center; min-height: 100vh; margin: 0; }
-        
         .card { background: var(--card); width: 90%; max-width: 400px; padding: 30px; border-radius: 20px; text-align: center; box-shadow: 0 10px 30px rgba(0,0,0,0.5); border: 1px solid #333; }
         
         /* Header */
@@ -31,19 +30,20 @@
         .btn-connect { background: #333; color: var(--primary); border: 1px solid var(--primary); }
         .btn-tare { background: linear-gradient(135deg, #f39c12, #d35400); }
         .btn-cal { background: #333; color: #777; font-size: 0.8rem; padding: 10px; margin-top: 20px; }
-
-        /* Calibração (Escondido) */
+        
+        /* Botão Nuvem */
+        .btn-cloud { background: #27ae60; margin-bottom: 10px; display: none; } /* Escondido até conectar */
+        
         #cal-area { display: none; margin-top: 15px; background: #252525; padding: 15px; border-radius: 10px; }
         input { background: #333; border: 1px solid #555; color: white; padding: 10px; width: 60%; border-radius: 5px; text-align: center; }
         .btn-save { background: var(--primary); margin-top: 5px; }
-
     </style>
 </head>
 <body>
 
     <div class="card">
         <div class="header">
-            <span>Projeto BLE</span>
+            <span>PROJETO BLE</span>
             <div class="bat-box">
                 <span id="bat-txt">--%</span>
                 <div class="bat-icon"><div id="bat-fill" class="bat-fill"></div></div>
@@ -57,6 +57,9 @@
         </div>
 
         <button id="btn-bt" class="btn-connect" onclick="connectBLE()">🔗 CONECTAR BALANÇA</button>
+        
+        <button id="btn-cloud" class="btn-cloud" onclick="saveToCloud()">☁️ SALVAR NA NUVEM</button>
+        
         <button id="btn-tare" class="btn-tare" onclick="sendCommand('TARE')" disabled>ZERAR (TARA)</button>
 
         <button class="btn-cal" onclick="toggleCal()">Configurações</button>
@@ -68,59 +71,78 @@
     </div>
 
     <script>
-        // UUIDs DEVEM SER IGUAIS AOS DO ESP32
+        // --- COLE SEU LINK DO GOOGLE SCRIPT AQUI ---
+        const GOOGLE_SCRIPT_URL = "https://script.google.com/macros/s/AKfycby7MHfI-FPOTnYXUF3aBAnqcC9tO5d1c4c7CpwxmHe-rE1COv0UNxgp4y9vFeT4iICY/exec"; 
+
         const SERVICE_UUID = "4fafc201-1fb5-459e-8fcc-c5c9c331914b";
         const CHAR_DATA_UUID = "beb5483e-36e1-4688-b7f5-ea07361b26a8";
         const CHAR_CMD_UUID = "129e7192-36e1-4688-b7f5-ea07361b26a8";
 
         let device, server, service, charData, charCmd;
+        let currentWeight = 0;
+        let currentBat = 0;
 
         async function connectBLE() {
             try {
-                // 1. Pede permissão ao usuário
                 device = await navigator.bluetooth.requestDevice({
                     filters: [{ name: 'Projeto Scale' }],
                     optionalServices: [SERVICE_UUID]
                 });
-
-                // 2. Conecta
                 document.getElementById('btn-bt').innerText = "Conectando...";
                 server = await device.gatt.connect();
                 service = await server.getPrimaryService(SERVICE_UUID);
-                
-                // 3. Obtém características
                 charData = await service.getCharacteristic(CHAR_DATA_UUID);
                 charCmd = await service.getCharacteristic(CHAR_CMD_UUID);
 
-                // 4. Assina notificações (Leitura em tempo real)
                 await charData.startNotifications();
                 charData.addEventListener('characteristicvaluechanged', handleData);
 
-                // UI Update
                 document.getElementById('status-dot').classList.add('connected');
                 document.getElementById('btn-bt').style.display = 'none';
+                document.getElementById('btn-cloud').style.display = 'block'; // Mostra botão nuvem
                 document.getElementById('btn-tare').disabled = false;
                 
-                // Monitora desconexão
                 device.addEventListener('gattserverdisconnected', onDisconnected);
 
             } catch (error) {
-                console.error(error);
-                alert("Erro ao conectar: " + error);
+                alert("Erro: " + error);
                 document.getElementById('btn-bt').innerText = "🔗 CONECTAR BALANÇA";
             }
         }
 
         function handleData(event) {
-            // Decodifica dados vindos do ESP32 ("120.5|85")
             let enc = new TextDecoder();
             let data = enc.decode(event.target.value);
             let parts = data.split('|');
-            
             if(parts.length === 2) {
-                document.getElementById('weight').innerText = parts[0];
-                updateBattery(parseInt(parts[1]));
+                currentWeight = parts[0];
+                currentBat = parseInt(parts[1]);
+                document.getElementById('weight').innerText = currentWeight;
+                updateBattery(currentBat);
             }
+        }
+
+        // --- FUNÇÃO DE SALVAR NA NUVEM ---
+        function saveToCloud() {
+            if(currentWeight == 0 || currentWeight == "---") return alert("Sem peso para salvar!");
+            
+            let btn = document.getElementById('btn-cloud');
+            let originalText = btn.innerText;
+            btn.innerText = "Enviando...";
+            btn.disabled = true;
+
+            // Envia para o Google Sheets sem recarregar a página
+            fetch(GOOGLE_SCRIPT_URL + `?peso=${currentWeight}&bat=${currentBat}`, {
+                mode: 'no-cors' // Importante para não dar erro de segurança
+            }).then(() => {
+                alert(`Salvo!\nPeso: ${currentWeight}g\nBateria: ${currentBat}%`);
+                btn.innerText = originalText;
+                btn.disabled = false;
+            }).catch(e => {
+                alert("Erro ao salvar: " + e);
+                btn.innerText = originalText;
+                btn.disabled = false;
+            });
         }
 
         async function sendCommand(cmd) {
@@ -132,9 +154,9 @@
         function calibrate() {
             let w = document.getElementById('cal-weight').value;
             if(!w) return alert("Digite o peso!");
-            if(confirm(`Coloque ${w}g na balança e confirme.`)) {
+            if(confirm(`Coloque ${w}g e confirme.`)) {
                 sendCommand(`CAL:${w}`);
-                alert("Comando de calibração enviado!");
+                alert("Calibrando...");
                 toggleCal();
             }
         }
@@ -143,7 +165,7 @@
             document.getElementById('status-dot').classList.remove('connected');
             document.getElementById('weight').innerText = "---";
             document.getElementById('btn-bt').style.display = 'block';
-            document.getElementById('btn-bt').innerText = "🔗 RECONECTAR";
+            document.getElementById('btn-cloud').style.display = 'none'; // Esconde botão nuvem
             document.getElementById('btn-tare').disabled = true;
         }
 
