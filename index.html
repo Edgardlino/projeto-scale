@@ -171,15 +171,6 @@
             });
         }
 
-O problema é que o JavaScript do navegador tenta "adivinhar" o formato da data. Quando ele recebe 08/12/2025, ele pensa que é Agosto (Mês 08) dia 12, pois o padrão internacional da programação é Mês/Dia. Por isso ele inverte e mostra 12/8 (Dia 12 do mês 8).
-
-Para resolver de vez, vamos parar de pedir para o navegador interpretar a data (new Date) e vamos tratar ela apenas como Texto.
-
-Substitua a função loadHistory no seu código HTML por esta versão corrigida. Ela pega exatamente o que está escrito e corta os pedaços, sem tentar "pensar" se é mês ou dia.
-
-A Correção (Copie e substitua no seu index.html)
-JavaScript
-
         // --- LER HISTÓRICO (CORRIGIDO PARA DATA BR) ---
         function loadHistory() {
             const m = document.getElementById('histModal');
