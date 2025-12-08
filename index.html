@@ -1,0 +1,163 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Hornaxys IoT</title>
+    <style>
+        :root { --bg: #121212; --card: #1e1e1e; --primary: #00d2ff; --text: #e0e0e0; --danger: #ff4b2b; }
+        body { font-family: 'Segoe UI', sans-serif; background: var(--bg); color: var(--text); display: flex; flex-direction: column; align-items: center; justify-content: center; min-height: 100vh; margin: 0; }
+        
+        .card { background: var(--card); width: 90%; max-width: 400px; padding: 30px; border-radius: 20px; text-align: center; box-shadow: 0 10px 30px rgba(0,0,0,0.5); border: 1px solid #333; }
+        
+        /* Header */
+        .header { display: flex; justify-content: space-between; align-items: center; margin-bottom: 20px; color: #666; font-size: 0.9rem; }
+        .status-dot { height: 10px; width: 10px; background: #444; border-radius: 50%; display: inline-block; }
+        .connected { background: var(--primary); box-shadow: 0 0 10px var(--primary); }
+
+        /* Peso */
+        .weight-box { background: #000; border-radius: 10px; padding: 20px; margin: 20px 0; border: 1px solid #333; position: relative; }
+        .value { font-size: 4rem; font-weight: bold; color: var(--primary); font-family: monospace; }
+        .unit { position: absolute; bottom: 15px; right: 20px; color: #666; }
+
+        /* Bateria */
+        .bat-box { display: flex; align-items: center; gap: 5px; justify-content: flex-end; }
+        .bat-icon { width: 20px; height: 10px; border: 2px solid #666; position: relative; padding: 1px; }
+        .bat-fill { height: 100%; background: #00b09b; width: 0%; transition: 0.3s; }
+        .bat-icon::after { content: ''; position: absolute; right: -4px; top: 2px; width: 2px; height: 6px; background: #666; }
+
+        /* Botões */
+        button { width: 100%; padding: 15px; border-radius: 12px; border: none; font-size: 1rem; font-weight: bold; cursor: pointer; margin-top: 10px; color: white; transition: 0.2s; }
+        .btn-connect { background: #333; color: var(--primary); border: 1px solid var(--primary); }
+        .btn-tare { background: linear-gradient(135deg, #f39c12, #d35400); }
+        .btn-cal { background: #333; color: #777; font-size: 0.8rem; padding: 10px; margin-top: 20px; }
+
+        /* Calibração (Escondido) */
+        #cal-area { display: none; margin-top: 15px; background: #252525; padding: 15px; border-radius: 10px; }
+        input { background: #333; border: 1px solid #555; color: white; padding: 10px; width: 60%; border-radius: 5px; text-align: center; }
+        .btn-save { background: var(--primary); margin-top: 5px; }
+
+    </style>
+</head>
+<body>
+
+    <div class="card">
+        <div class="header">
+            <span>HORNAXYS BLE</span>
+            <div class="bat-box">
+                <span id="bat-txt">--%</span>
+                <div class="bat-icon"><div id="bat-fill" class="bat-fill"></div></div>
+                <span id="status-dot" class="status-dot"></span>
+            </div>
+        </div>
+
+        <div class="weight-box">
+            <span id="weight">---</span>
+            <span class="unit">g</span>
+        </div>
+
+        <button id="btn-bt" class="btn-connect" onclick="connectBLE()">🔗 CONECTAR BALANÇA</button>
+        <button id="btn-tare" class="btn-tare" onclick="sendCommand('TARE')" disabled>ZERAR (TARA)</button>
+
+        <button class="btn-cal" onclick="toggleCal()">Configurações</button>
+        <div id="cal-area">
+            <p style="color:#aaa; font-size:0.8rem">Coloque um peso conhecido:</p>
+            <input type="number" id="cal-weight" placeholder="Ex: 1000">
+            <button class="btn-save" onclick="calibrate()">CALIBRAR</button>
+        </div>
+    </div>
+
+    <script>
+        // UUIDs DEVEM SER IGUAIS AOS DO ESP32
+        const SERVICE_UUID = "4fafc201-1fb5-459e-8fcc-c5c9c331914b";
+        const CHAR_DATA_UUID = "beb5483e-36e1-4688-b7f5-ea07361b26a8";
+        const CHAR_CMD_UUID = "129e7192-36e1-4688-b7f5-ea07361b26a8";
+
+        let device, server, service, charData, charCmd;
+
+        async function connectBLE() {
+            try {
+                // 1. Pede permissão ao usuário
+                device = await navigator.bluetooth.requestDevice({
+                    filters: [{ name: 'Hornaxys Scale' }],
+                    optionalServices: [SERVICE_UUID]
+                });
+
+                // 2. Conecta
+                document.getElementById('btn-bt').innerText = "Conectando...";
+                server = await device.gatt.connect();
+                service = await server.getPrimaryService(SERVICE_UUID);
+                
+                // 3. Obtém características
+                charData = await service.getCharacteristic(CHAR_DATA_UUID);
+                charCmd = await service.getCharacteristic(CHAR_CMD_UUID);
+
+                // 4. Assina notificações (Leitura em tempo real)
+                await charData.startNotifications();
+                charData.addEventListener('characteristicvaluechanged', handleData);
+
+                // UI Update
+                document.getElementById('status-dot').classList.add('connected');
+                document.getElementById('btn-bt').style.display = 'none';
+                document.getElementById('btn-tare').disabled = false;
+                
+                // Monitora desconexão
+                device.addEventListener('gattserverdisconnected', onDisconnected);
+
+            } catch (error) {
+                console.error(error);
+                alert("Erro ao conectar: " + error);
+                document.getElementById('btn-bt').innerText = "🔗 CONECTAR BALANÇA";
+            }
+        }
+
+        function handleData(event) {
+            // Decodifica dados vindos do ESP32 ("120.5|85")
+            let enc = new TextDecoder();
+            let data = enc.decode(event.target.value);
+            let parts = data.split('|');
+            
+            if(parts.length === 2) {
+                document.getElementById('weight').innerText = parts[0];
+                updateBattery(parseInt(parts[1]));
+            }
+        }
+
+        async function sendCommand(cmd) {
+            if (!charCmd) return;
+            let enc = new TextEncoder();
+            await charCmd.writeValue(enc.encode(cmd));
+        }
+
+        function calibrate() {
+            let w = document.getElementById('cal-weight').value;
+            if(!w) return alert("Digite o peso!");
+            if(confirm(`Coloque ${w}g na balança e confirme.`)) {
+                sendCommand(`CAL:${w}`);
+                alert("Comando de calibração enviado!");
+                toggleCal();
+            }
+        }
+
+        function onDisconnected() {
+            document.getElementById('status-dot').classList.remove('connected');
+            document.getElementById('weight').innerText = "---";
+            document.getElementById('btn-bt').style.display = 'block';
+            document.getElementById('btn-bt').innerText = "🔗 RECONECTAR";
+            document.getElementById('btn-tare').disabled = true;
+        }
+
+        function updateBattery(pct) {
+            document.getElementById('bat-txt').innerText = pct + "%";
+            let fill = document.getElementById('bat-fill');
+            fill.style.width = pct + "%";
+            fill.style.backgroundColor = pct < 20 ? '#ff4b2b' : '#00b09b';
+        }
+
+        function toggleCal() {
+            let el = document.getElementById('cal-area');
+            el.style.display = el.style.display === 'block' ? 'none' : 'block';
+        }
+    </script>
+</body>
+</html>
