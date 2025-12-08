@@ -171,7 +171,16 @@
             });
         }
 
-        // --- LER HISTÓRICO ---
+O problema é que o JavaScript do navegador tenta "adivinhar" o formato da data. Quando ele recebe 08/12/2025, ele pensa que é Agosto (Mês 08) dia 12, pois o padrão internacional da programação é Mês/Dia. Por isso ele inverte e mostra 12/8 (Dia 12 do mês 8).
+
+Para resolver de vez, vamos parar de pedir para o navegador interpretar a data (new Date) e vamos tratar ela apenas como Texto.
+
+Substitua a função loadHistory no seu código HTML por esta versão corrigida. Ela pega exatamente o que está escrito e corta os pedaços, sem tentar "pensar" se é mês ou dia.
+
+A Correção (Copie e substitua no seu index.html)
+JavaScript
+
+        // --- LER HISTÓRICO (CORRIGIDO PARA DATA BR) ---
         function loadHistory() {
             const m = document.getElementById('histModal');
             m.style.display = 'flex';
@@ -186,21 +195,30 @@
                 document.getElementById('loading').style.display = 'none';
                 document.getElementById('hist-table').style.display = 'table';
                 
-                // Pega os últimos 15 e inverte
+                // Pega os últimos 15
                 let ultimos = data.slice(1).slice(-15).reverse(); 
 
                 ultimos.forEach(row => {
-                    // CORREÇÃO: Tratamento de Texto Simples
-                    // O Google Script agora manda "08/12/2025" e "14:30" prontos.
-                    // row[0] = Data (String), row[1] = Hora (String)
+                    // O Google manda: row[0] = "08/12/2025" (Texto)
+                    //                 row[1] = "14:55" (Texto)
                     
-                    // Pega apenas "08/12" (os 5 primeiros caracteres da data)
+                    // Tratamento como TEXTO puro (Sem new Date)
+                    // Pega os primeiros 5 caracteres: "08/12"
                     let diaMes = row[0].substring(0, 5); 
-                    let hora = row[1];
-                    let dataFormatada = diaMes + " " + hora;
+                    
+                    // Se por acaso vier no formato americano (YYYY-MM-DD), previne erro:
+                    if (row[0].indexOf('-') > -1) {
+                       let partes = row[0].split('-'); // 2025-12-08
+                       diaMes = partes[2] + "/" + partes[1];
+                    }
+
+                    let hora = row[1]; // "14:55"
+                    
+                    // Monta a string final
+                    let dataFinal = diaMes + " " + hora;
                     
                     let tr = `<tr>
-                        <td>${dataFormatada}</td>
+                        <td>${dataFinal}</td>
                         <td style="font-weight:bold; color:white">${row[2]}</td>
                         <td style="color:#aaa">${row[3]}%</td>
                     </tr>`;
