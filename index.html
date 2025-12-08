@@ -9,34 +9,43 @@
         body { font-family: 'Segoe UI', sans-serif; background: var(--bg); color: var(--text); display: flex; flex-direction: column; align-items: center; justify-content: center; min-height: 100vh; margin: 0; }
         .card { background: var(--card); width: 90%; max-width: 400px; padding: 30px; border-radius: 20px; text-align: center; box-shadow: 0 10px 30px rgba(0,0,0,0.5); border: 1px solid #333; }
         
-        /* Header */
+        /* Header e Bateria */
         .header { display: flex; justify-content: space-between; align-items: center; margin-bottom: 20px; color: #666; font-size: 0.9rem; }
         .status-dot { height: 10px; width: 10px; background: #444; border-radius: 50%; display: inline-block; }
         .connected { background: var(--primary); box-shadow: 0 0 10px var(--primary); }
-
-        /* Peso */
-        .weight-box { background: #000; border-radius: 10px; padding: 20px; margin: 20px 0; border: 1px solid #333; position: relative; }
-        .value { font-size: 4rem; font-weight: bold; color: var(--primary); font-family: monospace; }
-        .unit { position: absolute; bottom: 15px; right: 20px; color: #666; }
-
-        /* Bateria */
         .bat-box { display: flex; align-items: center; gap: 5px; justify-content: flex-end; }
         .bat-icon { width: 20px; height: 10px; border: 2px solid #666; position: relative; padding: 1px; }
         .bat-fill { height: 100%; background: #00b09b; width: 0%; transition: 0.3s; }
         .bat-icon::after { content: ''; position: absolute; right: -4px; top: 2px; width: 2px; height: 6px; background: #666; }
 
-        /* Botões */
+        /* Display Peso */
+        .weight-box { background: #000; border-radius: 10px; padding: 20px; margin: 20px 0; border: 1px solid #333; position: relative; }
+        .value { font-size: 4rem; font-weight: bold; color: var(--primary); font-family: monospace; }
+        .unit { position: absolute; bottom: 15px; right: 20px; color: #666; }
+
+        /* Botões Principais */
         button { width: 100%; padding: 15px; border-radius: 12px; border: none; font-size: 1rem; font-weight: bold; cursor: pointer; margin-top: 10px; color: white; transition: 0.2s; }
         .btn-connect { background: #333; color: var(--primary); border: 1px solid var(--primary); }
         .btn-tare { background: linear-gradient(135deg, #f39c12, #d35400); }
         .btn-cal { background: #333; color: #777; font-size: 0.8rem; padding: 10px; margin-top: 20px; }
-        
-        /* Botão Nuvem */
-        .btn-cloud { background: #27ae60; margin-bottom: 10px; display: none; } /* Escondido até conectar */
-        
+        .btn-cloud { background: #27ae60; margin-bottom: 5px; display: none; }
+        .btn-hist { background: #8e44ad; display: none; } /* Botão Histórico */
+
+        /* Calibração */
         #cal-area { display: none; margin-top: 15px; background: #252525; padding: 15px; border-radius: 10px; }
         input { background: #333; border: 1px solid #555; color: white; padding: 10px; width: 60%; border-radius: 5px; text-align: center; }
         .btn-save { background: var(--primary); margin-top: 5px; }
+
+        /* MODAL DE HISTÓRICO */
+        .modal-overlay { position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: rgba(0,0,0,0.9); z-index: 100; display: none; justify-content: center; align-items: center; }
+        .modal-content { background: #1a1a1a; padding: 20px; border-radius: 15px; width: 95%; max-width: 500px; max-height: 80vh; overflow-y: auto; border: 1px solid #333; color: #ddd; position: relative; }
+        .close-btn { position: absolute; top: 15px; right: 15px; font-size: 1.5rem; color: #666; cursor: pointer; }
+        
+        /* Tabela */
+        table { width: 100%; border-collapse: collapse; margin-top: 10px; font-size: 0.9rem; }
+        th { text-align: left; border-bottom: 1px solid #444; color: var(--primary); padding: 5px; }
+        td { border-bottom: 1px solid #333; padding: 8px 5px; }
+        tr:last-child td { border: none; }
     </style>
 </head>
 <body>
@@ -59,6 +68,7 @@
         <button id="btn-bt" class="btn-connect" onclick="connectBLE()">🔗 CONECTAR BALANÇA</button>
         
         <button id="btn-cloud" class="btn-cloud" onclick="saveToCloud()">☁️ SALVAR NA NUVEM</button>
+        <button id="btn-hist" class="btn-hist" onclick="loadHistory()">📜 VER HISTÓRICO</button>
         
         <button id="btn-tare" class="btn-tare" onclick="sendCommand('TARE')" disabled>ZERAR (TARA)</button>
 
@@ -70,8 +80,26 @@
         </div>
     </div>
 
+    <div id="histModal" class="modal-overlay">
+        <div class="modal-content">
+            <span class="close-btn" onclick="closeModal()">&times;</span>
+            <h3>Histórico de Pesagem</h3>
+            <div id="loading" style="text-align:center; color:#888;">Carregando dados...</div>
+            <table id="hist-table" style="display:none;">
+                <thead>
+                    <tr>
+                        <th>Data</th>
+                        <th>Peso (g)</th>
+                        <th>Bat</th>
+                    </tr>
+                </thead>
+                <tbody id="hist-body"></tbody>
+            </table>
+        </div>
+    </div>
+
     <script>
-        // --- COLE SEU LINK DO GOOGLE SCRIPT AQUI ---
+        // --- SEU LINK DO GOOGLE SCRIPT ---
         const GOOGLE_SCRIPT_URL = "https://script.google.com/macros/s/AKfycbywhp8dTqHn9oGgIk3P4fQ8QsVK6QINHUKJmvmWb5FGikMxAuXDY82XvyMCJRXjAnaq9A/exec"; 
 
         const SERVICE_UUID = "4fafc201-1fb5-459e-8fcc-c5c9c331914b";
@@ -99,7 +127,9 @@
 
                 document.getElementById('status-dot').classList.add('connected');
                 document.getElementById('btn-bt').style.display = 'none';
-                document.getElementById('btn-cloud').style.display = 'block'; // Mostra botão nuvem
+                // Mostra botões de nuvem
+                document.getElementById('btn-cloud').style.display = 'block';
+                document.getElementById('btn-hist').style.display = 'block';
                 document.getElementById('btn-tare').disabled = false;
                 
                 device.addEventListener('gattserverdisconnected', onDisconnected);
@@ -122,50 +152,79 @@
             }
         }
 
-        // --- FUNÇÃO DE SALVAR NA NUVEM ---
+        // --- SALVAR ---
         function saveToCloud() {
             if(currentWeight == 0 || currentWeight == "---") return alert("Sem peso para salvar!");
-            
             let btn = document.getElementById('btn-cloud');
-            let originalText = btn.innerText;
-            btn.innerText = "Enviando...";
-            btn.disabled = true;
+            btn.innerText = "Enviando..."; btn.disabled = true;
 
-            // Envia para o Google Sheets sem recarregar a página
-            fetch(GOOGLE_SCRIPT_URL + `?peso=${currentWeight}&bat=${currentBat}`, {
-                mode: 'no-cors' // Importante para não dar erro de segurança
-            }).then(() => {
-                alert(`Salvo!\nPeso: ${currentWeight}g\nBateria: ${currentBat}%`);
-                btn.innerText = originalText;
-                btn.disabled = false;
+            fetch(GOOGLE_SCRIPT_URL + `?peso=${currentWeight}&bat=${currentBat}`, { mode: 'no-cors' })
+            .then(() => {
+                alert(`Salvo!`);
+                btn.innerText = "☁️ SALVAR NA NUVEM"; btn.disabled = false;
             }).catch(e => {
-                alert("Erro ao salvar: " + e);
-                btn.innerText = originalText;
-                btn.disabled = false;
+                alert("Erro: " + e);
+                btn.innerText = "☁️ SALVAR NA NUVEM"; btn.disabled = false;
             });
         }
 
-        async function sendCommand(cmd) {
-            if (!charCmd) return;
-            let enc = new TextEncoder();
-            await charCmd.writeValue(enc.encode(cmd));
+        // --- LER HISTÓRICO ---
+        function loadHistory() {
+            const m = document.getElementById('histModal');
+            m.style.display = 'flex';
+            const tbody = document.getElementById('hist-body');
+            tbody.innerHTML = ''; // Limpa tabela antiga
+            document.getElementById('loading').style.display = 'block';
+            document.getElementById('hist-table').style.display = 'none';
+
+            // Chama o Script com action=read
+            fetch(GOOGLE_SCRIPT_URL + "?action=read")
+            .then(r => r.json())
+            .then(data => {
+                document.getElementById('loading').style.display = 'none';
+                document.getElementById('hist-table').style.display = 'table';
+                
+                // Pega apenas os últimos 10 registros e inverte (mais recente primeiro)
+                // Se quiser ver tudo, remova o .slice(-10)
+                let ultimos = data.slice(1).slice(-15).reverse(); 
+
+                ultimos.forEach(row => {
+                    // row[0]=Data, row[1]=Hora, row[2]=Peso, row[3]=Bat
+                    // Formata a data para ficar curto (Dia/Mes)
+                    let d = new Date(row[0]);
+                    let dataCurta = d.getDate() + "/" + (d.getMonth()+1) + " " + row[1].substring(0,5);
+                    
+                    let tr = `<tr>
+                        <td>${dataCurta}</td>
+                        <td style="font-weight:bold; color:white">${row[2]}</td>
+                        <td style="color:#aaa">${row[3]}%</td>
+                    </tr>`;
+                    tbody.innerHTML += tr;
+                });
+            })
+            .catch(e => {
+                document.getElementById('loading').innerText = "Erro ao carregar.";
+                console.log(e);
+            });
         }
 
+        function closeModal() {
+            document.getElementById('histModal').style.display = 'none';
+        }
+
+        // --- UTILS ---
+        async function sendCommand(cmd) { if (charCmd) { let enc = new TextEncoder(); await charCmd.writeValue(enc.encode(cmd)); } }
+        
         function calibrate() {
             let w = document.getElementById('cal-weight').value;
-            if(!w) return alert("Digite o peso!");
-            if(confirm(`Coloque ${w}g e confirme.`)) {
-                sendCommand(`CAL:${w}`);
-                alert("Calibrando...");
-                toggleCal();
-            }
+            if(w && confirm(`Calibrar com ${w}g?`)) { sendCommand(`CAL:${w}`); toggleCal(); alert("Enviado!"); }
         }
 
         function onDisconnected() {
             document.getElementById('status-dot').classList.remove('connected');
-            document.getElementById('weight').innerText = "---";
             document.getElementById('btn-bt').style.display = 'block';
-            document.getElementById('btn-cloud').style.display = 'none'; // Esconde botão nuvem
+            document.getElementById('btn-cloud').style.display = 'none';
+            document.getElementById('btn-hist').style.display = 'none';
             document.getElementById('btn-tare').disabled = true;
         }
 
@@ -180,6 +239,9 @@
             let el = document.getElementById('cal-area');
             el.style.display = el.style.display === 'block' ? 'none' : 'block';
         }
+        
+        // Fecha modal clicando fora
+        window.onclick = function(e) { if (e.target == document.getElementById('histModal')) closeModal(); }
     </script>
 </body>
 </html>
