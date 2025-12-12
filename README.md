@@ -33,16 +33,17 @@ O projeto utiliza o **ESP32-C6 SuperMini** por sua eficiência energética e o *
 * **Taxa de Amostragem (Data Rate):** Configurado para **10Hz**. Embora mais lento que 80Hz, o datasheet confirma que este modo reduz o ruído de entrada de 90nV para **50nV**, essencial para precisão.
 * **Settling Time:** O conversor precisa de **400ms** para estabilizar os dados após ligar. O firmware trata isso com um delay inicial de segurança.
 
-### Lista de Componentes
+### Lista de Componentes (BOM)
 * 1x Placa de Desenvolvimento ESP32-C6 SuperMini.
 * 1x Célula de Carga (capacidade conforme necessidade, ex: 5kg, 20kg).
 * 1x Módulo Amplificador HX711 (Configurado para **10Hz** para maior estabilidade).
 * 1x Bateria LiPo 3.7V/4.2V.
 * 2x Resistores de 100kΩ (para o divisor de tensão da bateria).
+* 1x Botão Táctil (Push Button) para Ligar/Desligar.
 
 ### Diagrama de Pinos (Pinout)
 
-A ligação foi projetada para garantir segurança no Deep Sleep e evitar pinos de *boot* ou *flash*.
+A ligação foi projetada para garantir segurança no Deep Sleep e evitar travamentos nos pinos de boot.
 
 | Componente | Pino do Componente | Pino ESP32 (GPIO) | Função |
 | :--- | :--- | :--- | :--- |
@@ -52,9 +53,11 @@ A ligação foi projetada para garantir segurança no Deep Sleep e evitar pinos 
 | **HX711** | GND | GND | Aterramento |
 | **Bateria** | Positivo (+) | **BAT** (Pad) | Alimentação da placa |
 | **Monitor Bat** | Divisor (Meio) | **GPIO 2** | Leitura de nível de bateria (ADC) |
+| **Botão Power** | Perna 1 | **GPIO 0** | Ligar/Desligar (Hold 3s) |
 | **LED Status** | Anodo (+) | **GPIO 15** | Indicador de conexão BLE |
 
 > **Nota sobre a Bateria:** O divisor de tensão (2 resistores de 100kΩ) conecta o positivo da bateria ao GND. O ponto central (entre os resistores) vai ao **GPIO 2**.
+> **Nota sobre o Botão:** A outra perna do botão deve ser ligada ao **GND**.
 
 ---
 
@@ -62,9 +65,12 @@ A ligação foi projetada para garantir segurança no Deep Sleep e evitar pinos 
 
 O código foi desenvolvido em C++ (Arduino IDE) com foco em **eficiência energética extrema**.
 
+* **Smart Power Control (Botão Seguro):**
+    * **Ligar:** Segure o botão por 3 segundos até o LED acender. (Evita ligar acidentalmente com toques rápidos).
+    * **Desligar:** Segure o botão por 3 segundos até o LED piscar.
 * **Deep Sleep Inteligente:**
-    * **Boot:** Se não conectar em 60s, desliga.
-    * **Pós-Uso:** Se desconectar, aguarda 15s e desliga.
+    * **Inatividade:** Se não conectar em 60s, desliga automaticamente.
+    * **Desconexão:** Se perder o Bluetooth, aguarda reconexão brevemente e desliga.
 * **Gestão de Energia do Sensor:** O pino VCC do HX711 é alimentado pelo **GPIO 3**. Durante o sono profundo, o ESP32 corta a energia do sensor, zerando o consumo da célula de carga.
 * **Interface BLE:** Atua como servidor GATT, enviando dados e recebendo comandos (`TARE`, `CAL`).
 
@@ -131,27 +137,31 @@ A interface é uma página HTML única hospedada no **GitHub Pages**. Ela utiliz
 
 ## 📱 7. Como Usar
 
-1.  Aperte o botão **Reset** (ou ligue) a balança. O LED azul piscará.
+1.  **Ligar:** Segure o botão Power (Pino 0) por **3 segundos**. O LED acenderá fixamente.
 2.  Abra o site (GitHub Pages) no seu celular (Chrome/Android ou Bluefy/iOS).
 3.  Clique em **🔗 CONECTAR BALANÇA**.
 4.  Selecione **"Projeto Scale"** na lista.
 5.  O peso aparecerá na tela.
 6.  Para salvar, clique em **☁️ SALVAR NA NUVEM**.
 7.  Para ver os dados anteriores, clique em **📜 VER HISTÓRICO**.
+8.  **Desligar:** Segure o botão Power por 3 segundos novamente (ou aguarde o tempo limite).
 
 ---
 
 ## ❓ 8. Solução de Problemas (Troubleshooting)
 
+### A balança não liga / LED não acende
+* Certifique-se de **segurar o botão por 3 segundos**. Toques rápidos são ignorados propositalmente para evitar acionamento acidental.
+* Se estiver usando o cabo USB, lembre-se que o Pino 0 também controla o Boot. Tente desconectar o USB ou pressionar Reset antes.
+
 ### A balança não aparece na lista de Bluetooth
-* **Bateria/Sono:** O dispositivo entra em *Deep Sleep* após 60s sem conexão. Aperte o botão **RESET** na placa para acordá-lo.
+* **Bateria/Sono:** O dispositivo entra em *Deep Sleep* após 60s sem conexão. Ligue-o novamente.
 * **Navegador:** Certifique-se de usar **Google Chrome** (Android/PC) ou **Bluefy** (iOS). O Safari padrão não suporta Web Bluetooth.
 * **Permissões:** No Android, é **obrigatório** ativar a **Localização (GPS)** para escanear dispositivos Bluetooth (exigência do sistema operacional).
 
 ### O peso fica oscilando ou "caindo" sozinho (Drift)
 * **Configuração RATE (HX711):** Verifique se o pino 15 (RATE) do chip HX711 está aterrado (GND). Em módulos comerciais, isso é o padrão. Se o módulo foi modificado para 80Hz (pino levantado ou ligado ao VCC), a leitura será instável.
 * **Acomodação:** O código inclui um atraso de 500ms no início para respeitar o "Settling Time" de 400ms exigido pelo datasheet em modo 10Hz. Não remova este delay.
-* **Estabilização:** Certifique-se de que a balança está em uma superfície rígida e plana.
 
 ### Erro ao "Salvar na Nuvem"
 * Verifique se o **Google Apps Script** foi implantado com permissão de acesso para **"Qualquer pessoa" (Anyone)**.
