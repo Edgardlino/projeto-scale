@@ -168,6 +168,8 @@ A interface é uma página HTML única hospedada no **GitHub Pages**. Ela utiliz
 * Se você editou o script, lembre-se de criar uma **"Nova Versão"** na hora de implantar.
 * Confirme se o link gerado (`.../exec`) foi copiado corretamente para a constante `GOOGLE_SCRIPT_URL` no arquivo `index.html`.
 
+** Nota: Em alguns módulos genéricos, pode ser necessário soldar o pino E- ao GND para corrigir flutuações, conforme erro de design conhecido.
+
 ---
 
 ## 🎛️ 9. Como Ajustar os Filtros (Ajuste Fino)
