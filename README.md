@@ -30,7 +30,7 @@ O projeto utiliza o **ESP32-C6 SuperMini** por sua eficiência energética e o *
 
 ### Destaques Técnicos do HX711 (Baseado no Datasheet)
 * **Amplificador de Baixo Ruído (PGA):** Utilizamos o Canal A com ganho de **128**. Isso permite ler variações de tensão minúsculas ($\pm20mV$ Full Scale) provenientes da célula de carga.
-* **Taxa de Amostragem (Data Rate):** Configurado para **10Hz**. Embora mais lento que 80Hz, o datasheet confirma que este modo reduz o ruído de entrada de 90nV(Nanovolt) para **50nV**, essencial para precisão.
+* **Taxa de Amostragem (Data Rate):** Configurado para **10Hz**. Embora mais lento que 80Hz, o datasheet confirma que este modo reduz o ruído de entrada de 90 nV (Nanovolts) para **50nV**, essencial para precisão.
 * **Settling Time:** O conversor precisa de **400ms** para estabilizar os dados após ligar. O firmware trata isso com um delay inicial de segurança.
 
 ### Lista de Componentes (BOM)
