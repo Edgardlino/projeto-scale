@@ -6,9 +6,6 @@
 ![Power](https://img.shields.io/badge/Bateria-Deep%20Sleep-green)
 ![Tech](https://img.shields.io/badge/Interface-No%20App%20Required-blue)
 
-<p align="center">
-  <img src="https://via.placeholder.com/600x300?text=Foto+do+Projeto+Aqui" alt="Foto da Balança">
-</p>
 
 ## ✨ Destaques
 * **Zero Instalação:** Funciona direto no navegador (Chrome/Android/PC) via tecnologia PWA.
