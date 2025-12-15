@@ -30,7 +30,7 @@ O projeto utiliza o **ESP32-C6 SuperMini** por sua eficiência energética e o *
 
 ### Destaques Técnicos do HX711 (Baseado no Datasheet)
 * **Amplificador de Baixo Ruído (PGA):** Utilizamos o Canal A com ganho de **128**. Isso permite ler variações de tensão minúsculas ($\pm20mV$ Full Scale) provenientes da célula de carga.
-* **Taxa de Amostragem (Data Rate):** Configurado para **10Hz**. Embora mais lento que 80Hz, o datasheet confirma que este modo reduz o ruído de entrada de 90nV para **50nV**, essencial para precisão.
+* **Taxa de Amostragem (Data Rate):** Configurado para **10Hz**. Embora mais lento que 80Hz, o datasheet confirma que este modo reduz o ruído de entrada de 90nV(Nanovolt) para **50nV**, essencial para precisão.
 * **Settling Time:** O conversor precisa de **400ms** para estabilizar os dados após ligar. O firmware trata isso com um delay inicial de segurança.
 
 ### Lista de Componentes (BOM)
@@ -152,7 +152,6 @@ A interface é uma página HTML única hospedada no **GitHub Pages**. Ela utiliz
 
 ### A balança não liga / LED não acende
 * Certifique-se de **segurar o botão por 3 segundos**. Toques rápidos são ignorados propositalmente para evitar acionamento acidental.
-* Se estiver usando o cabo USB, lembre-se que o Pino 0 também controla o Boot. Tente desconectar o USB ou pressionar Reset antes.
 
 ### A balança não aparece na lista de Bluetooth
 * **Bateria/Sono:** O dispositivo entra em *Deep Sleep* após 60s sem conexão. Ligue-o novamente.
@@ -168,7 +167,7 @@ A interface é uma página HTML única hospedada no **GitHub Pages**. Ela utiliz
 * Se você editou o script, lembre-se de criar uma **"Nova Versão"** na hora de implantar.
 * Confirme se o link gerado (`.../exec`) foi copiado corretamente para a constante `GOOGLE_SCRIPT_URL` no arquivo `index.html`.
 
-** Nota: Em alguns módulos genéricos, pode ser necessário soldar o pino E- ao GND para corrigir flutuações, conforme erro de design conhecido.
+## * Nota: Em alguns módulos genéricos, pode ser necessário soldar o pino E- ao GND para corrigir flutuações, conforme erro de design conhecido.
 
 ---
 
